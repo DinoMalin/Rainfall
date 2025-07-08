@@ -1,0 +1,17 @@
+flag: b209ea91ad69ef36f2cf0fcbbc24c739fd10464cf545b20bea8572ebdc3c36fa
+
+This level uses the format string exploit.
+Decompiling the program shows us that the program reads the stdin, printf it, and checks if the global variable 'm' evaluates to 64. If so, it opens a shell with correct access rights.
+
+We begin by finding where the string given to printf is located in the stack by sending ABCDEFGH then spamming the %x.
+Printf will look in the stack for the next element for each %x.
+This pattern shows that the 4th element displayed by printf is our string.
+
+The %n format specifier writes the number of characters printed so far into a given variable. To exploit this, we place the address of the m variable (0x0804988c) at the beginning of the string. Then, we skip the first three stack elements with '%x' and use %n, which will attempt to write the number of printed characters to the next address on the stack — in this case, the start of our string, which holds the address of m.
+
+Using GDB, we can confirm that this setup writes the value 33 into m. To reach a value of 64, we simply need to pad the string with 31 extra characters, so that the total number of characters printed matches the desired value.
+
+(python -c 'print "\x8c\x98\x04\x08"+" %p %p %p" + "A"*31 + " %n"' ; cat) | ./level3
+=> also possible to use %X rather than manually skipping each instruction
+
+> cat /home/user/level4/.pass

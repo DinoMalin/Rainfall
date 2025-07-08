@@ -1,0 +1,5 @@
+flag: 1fe8a524fa4bec01ca4ea2a869af2a02260d4a7d5fe7e7c24d8617e6dca12d3a
+
+Decompiling the binary with ghidra shows us that the script just read the first arg of the program, and if atoi reads it as 423 it opens a shell as the user level1.
+
+> cat /home/user/level1/.pass

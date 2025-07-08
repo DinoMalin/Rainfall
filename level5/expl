@@ -1,0 +1,22 @@
+flag: d3b7bf1025225bd715fa8ccb54ef06ca70b9125ac855aeab4878217177f41a31
+
+Another printf exercise, this time we got a function o which opens a shell, and a fgets which buffer is passed to a printf. Following theses functions we also have an exit.
+
+We can get the address of exit in the global offset table with a simple objdump of level5:
+
+> objdump -R level5
+...
+08049838 R_386_JUMP_SLOT   exit@GLIBC_2.0
+...
+
+So the address of exit in the GOT is 0x08049838. This means that when the program is executed, it will write the real address of exit at the address 0x08049838. So if we write over this address, when exit is called it will try to go where we want it to go. The goal of the exercise is to make exit go to o instead of going to the real exit.
+
+Using nm or ghidra teaches us that the address of o is 0x080484a4.
+Using the same method as usual, we find that the offset of the string of printf in the stack is 4.
+
+I don't want to cut the value in 4 and do 1 byte at a time this time, it was cool to show that it is possible but it is boring and unreliable because we end with a very long payload which is very prone to mistakes.
+We will just write the value in one shot:
+0x080484a4 is 134513828 in decimal. So our payload contains the address of exit, then 134513824%c to reach a total of 134513828 characters, and finally %4$n.
+
+(python -c 'print "\x38\x98\x04\x08" + "%134513824c%4$n"'; cat) | ./level5
+> cat /home/user/level6/.pass

