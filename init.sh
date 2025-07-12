@@ -12,17 +12,40 @@ MAC=$(VBoxManage showvminfo $NAME \
 IP=$(arp -a | grep -i $MAC | awk '{print $2}' | sed 's/(\([^)]*\))/\1/')
 
 get_flag() {
-	head level$(($1-1))/expl | head -n 1 | awk '{print $2}'
+	PREFIX="level"
+	LEVEL=$1
+
+	if [[ $1 == b* ]]; then
+		LEVEL=$(echo $1 | cut -c 2)
+		PREFIX="bonus"
+	fi
+
+	if [[ $PREFIX == "bonus" &&  $LEVEL == "0" ]]; then
+		LEVEL="9"
+		PREFIX="level"
+	else
+		LEVEL=$(($LEVEL-1))
+	fi
+
+	head $PREFIX$LEVEL/expl | head -n 1 | awk '{print $2}'
 }
 
 get_binary() {
+	PREFIX="level"
+	LEVEL="$1"
+
+	if [[ $1 == b* ]]; then
+		LEVEL=$(echo $1 | cut -c 2)
+		PREFIX="bonus"
+	fi
+
 	FLAG=$(get_flag $1)
 	if [ -z $FLAG ]; then
 		exit 1
 	fi
 
-	mkdir -p level$1
-	sshpass -p $FLAG scp -P 4242 level$1@$IP:level$1 level$1
+	mkdir -p $PREFIX$LEVEL
+	sshpass -p $FLAG scp -P 4242 $PREFIX$LEVEL@$IP:$PREFIX$LEVEL $PREFIX$LEVEL
 }
 
 if [ $1 = "connect" ]; then
@@ -32,11 +55,19 @@ if [ $1 = "connect" ]; then
 	fi
 
 	FLAG=$(get_flag $2)
+	echo $FLAG
 	if [ -z $FLAG ]; then
 		exit 1
 	fi
 
-	sshpass -p $FLAG ssh $IP -p 4242 -l level$2
+	PREFIX="level"
+	LEVEL="$2"
+	if [[ $2 == b* ]]; then
+		LEVEL=$(echo $2 | cut -c 2)
+		PREFIX="bonus"
+	fi
+
+	sshpass -p $FLAG ssh $IP -p 4242 -l $PREFIX$LEVEL
 	exit 0
 fi
 
