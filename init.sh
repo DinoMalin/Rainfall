@@ -55,7 +55,6 @@ if [ $1 = "connect" ]; then
 	fi
 
 	FLAG=$(get_flag $2)
-	echo $FLAG
 	if [ -z $FLAG ]; then
 		exit 1
 	fi
@@ -80,6 +79,9 @@ if [ $1 = "copy" ]; then
 	if [ $2 = "all" ]; then
 		for i in {0..9}; do
 			get_binary $i
+		done
+		for i in {0..4}; do
+			get_binary b$i
 		done
 		exit 0
 	fi
