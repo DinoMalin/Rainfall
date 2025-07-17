@@ -1,0 +1,36 @@
+flag: 71d449df0f960b36e0055eb58c14d0f5d0ddc0b35328d657f91cf0df15910587
+
+This program is once again a buffer overflow exploit, but this time I decided to do a
+a ret2libc.
+The program calls strncpy on a size of 40, which copies the first argument,
+then it copies the second on a size of 32. This is a mistake, and the same as the
+previous level: We can write more than 40 and the \0 will be skipped, leading the
+strcat in the greetuser function to look through the stack.
+The greetuser function greets the user in multiples languages, concatenating its name
+in a buffer.
+The default language, english, does buffer overflow enough to overwrite the first bytes 
+of eip, but it does not go far enough to reach every bytes, let alone the return addr
+and the arg of the function that we could give to our ret2libc.
+However, nl and fi both buffer overflow enough to reach eip !
+nl does not go far enough to do a ret2libc, so we are forced to use fi. We use a pattern
+to check the offset: 18.
+We then need to get the parameters needed to execute our ret2libc:
+- The address of system: to overwrite eip with the function system
+- The return address: the address of the function to call after system (usually exit)
+- The argument: The argument passed to the system function, that will be on top of the
+stack when system will be called (obviously /bin/sh)
+
+> p system:
+0xb7e6b060
+
+> p exit:
+0xb7e5ebe0
+
+> find __libc_start_main,+99999999,"/bin/sh"
+0xb7f8cc58
+
+This allows us to create our payload:
+
+LANG=fi ./bonus2 $(python -c 'print "A"*40') $(python -c 'print "B"*18+"\x60\xb0\xe6\xb7"+"\xe0\xeb\xe5\xb7"+"\x58\xcc\xf8\xb7"')
+
+> cat /home/user/bonus3/.pass
