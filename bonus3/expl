@@ -1,0 +1,20 @@
+flag: 3321b6f81659f9a71c76616f606e4b50189cecfea611393d5d649f75e157353c
+
+This level seems complicated at first because we can't use gdb on it, but it's not.
+It begins by opening the .pass file, then if the opening is successfull it continues.
+Otherwise, it will exit. With gdb, we can't access this part because gdb disables the
+setuid property, so we can't really know what's happening.
+Decompilating the program gives us more information:
+The program reads the .pass file and puts it in a buffer.
+The program also takes an argument. It does an atoi on it and put a '\0' at buffer + the
+return value of atoi.
+Then it does a strcmp to compare the first argument to the buffer. If there is no diff,
+The program opens a shell.
+
+The solution is then to just pass an empty argument to the program: atoi will return 0,
+so the program will put a '\0' on the first character of the buffer. The buffer will
+then be interpreted as an empty string, which is compared to the empty string passed to
+the program. Two empty strings: No differences => We got our shell.
+
+./bonus3 ""
+> cat /home/user/end/.pass
