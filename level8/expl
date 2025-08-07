@@ -6,7 +6,7 @@ auth sets the auth variable to an allocated value of size 4, service sets the se
 reset frees auth, login checks if auth[8] is non-zero, in which case it opens a shell.
 auth[8] by sections of 4 bytes meaning it check the zone between the 32th and the 36th byte.
 
-The first though that comes to mind would then be to just overflow the 4 bytes allocated by auth, but auth doesn't let us go past 30 bytes.
+The first thought that comes to mind would then be to just overflow the 4 bytes allocated by auth, but auth doesn't let us go past 30 bytes.
 Knowing that malloc works allocating 16 bytes at a time, we just have to use service to reach the 32th byte, because service will be allocated automatically right after auth.
 We fill service with a space and 15 a (the space being there for clarity).
 
